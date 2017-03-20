@@ -138,6 +138,7 @@ def pandl_with_data(price, trades=None, marktomarket=True, positions=None,
         use_fx = pd.Series([1.0] * len(price.index),
                            index=price.index)
     else:
+        fx.drop_duplicates(inplace=True)
         use_fx = fx.reindex(price.index, method="ffill")
 
     if trades is None:

@@ -91,13 +91,14 @@ def expiry_diff(carry_row, floor_date_diff=20):
 
 
     """
-    if carry_row.PRICE_CONTRACT == "" or carry_row.CARRY_CONTRACT == "":
-        return np.nan
-    ans = float((expiry_date(carry_row.CARRY_CONTRACT) -
-                 expiry_date(carry_row.PRICE_CONTRACT)).days)
-    if abs(ans) < floor_date_diff:
-        ans = sign(ans) * floor_date_diff
-    ans = ans / CALENDAR_DAYS_IN_YEAR
+    #if carry_row.PRICE_CONTRACT == "" or carry_row.CARRY_CONTRACT == "":
+    #    return np.nan
+    #ans = float((expiry_date(carry_row.CARRY_CONTRACT) -
+    #             expiry_date(carry_row.PRICE_CONTRACT)).days)
+    #if abs(ans) < floor_date_diff:
+    #    ans = sign(ans) * floor_date_diff
+    #ans = ans / CALENDAR_DAYS_IN_YEAR
+    ans = 3.5/CALENDAR_DAYS_IN_YEAR
 
     return ans
 

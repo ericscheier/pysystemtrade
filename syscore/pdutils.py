@@ -20,7 +20,7 @@ def turnover(x, y):
 
     norm_x = x / y.ffill()
 
-    avg_daily = float(norm_x.diff().abs().resample("1B").sum().mean())
+    avg_daily = float(norm_x.diff().abs().resample("1H").sum().mean())
 
     return avg_daily * BUSINESS_DAYS_IN_YEAR
 

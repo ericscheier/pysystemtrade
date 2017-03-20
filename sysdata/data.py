@@ -5,7 +5,7 @@ from syscore.objects import get_methods
 DEFAULT_CURRENCY = "USD"
 
 DEFAULT_DATES = pd.date_range(start=pd.datetime(
-    1970, 1, 1), freq="B", end=pd.datetime(2040, 12, 10))
+    1970, 1, 1), freq="H", end=pd.datetime(2040, 12, 10))
 DEFAULT_RATE_SERIES = pd.Series(
     [1.0] * len(DEFAULT_DATES), index=DEFAULT_DATES)
 
@@ -55,7 +55,7 @@ class Data(object):
 
         """
         instrprice = self.get_raw_price(instrument_code)
-        dailyprice = instrprice.resample("1B").last()
+        dailyprice = instrprice.resample("1H").last()
 
         return dailyprice
 
@@ -151,6 +151,7 @@ class Data(object):
 
 
         """
+        DEFAULT_CURRENCY = "USD"
 
         return DEFAULT_CURRENCY
 
@@ -168,6 +169,8 @@ class Data(object):
         2015-01-01   1
         Freq: B, dtype: float64
         """
+        DEFAULT_DATES = pd.date_range(start=pd.datetime(1970, 1, 1), freq="H", end=pd.datetime(2040, 12, 10))
+        DEFAULT_RATE_SERIES = pd.Series([1.0] * len(DEFAULT_DATES), index=DEFAULT_DATES)
 
         return DEFAULT_RATE_SERIES
 
