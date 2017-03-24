@@ -482,7 +482,10 @@ class PositionSizing(SystemStage):
             vol_scalar = this_stage.get_volatility_scalar(instrument_code)
             forecast = this_stage.get_combined_forecast(instrument_code)
             
-            vol_scalar.drop_duplicates(inplace=True)
+            #vol_scalar.drop_duplicates(inplace=True)
+            vol_scalar = vol_scalar[~vol_scalar.index.duplicated(keep='last')]
+            #forecast.drop_duplicates(inplace=True)
+            forecast = forecast[~forecast.index.duplicated(keep='last')]
 
             vol_scalar = vol_scalar.reindex(forecast.index).ffill()
 
