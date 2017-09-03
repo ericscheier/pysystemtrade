@@ -1,19 +1,16 @@
 import numpy as np
+import pandas as pd
 
 from systems.rawdata import RawData
-from syscore.objects import update_recalc
 from syscore.dateutils import expiry_diff
 from syscore.pdutils import uniquets
+from systems.system_cache import input, diagnostic, output
+from syscore.dateutils import ROOT_BDAYS_INYEAR
 
 
 class FuturesRawData(RawData):
     """
     A SubSystem that does futures specific raw data calculations
-
-    KEY INPUT: system.data.get_instrument_raw_carry_data(instrument_code) found
-               in self.get_instrument_raw_carry_data(self, instrument_code)
-
-    KEY OUTPUT: system.rawdata.daily_annualised_roll(instrument_code)
 
     Name: rawdata
     """
@@ -27,15 +24,9 @@ class FuturesRawData(RawData):
         """
         super(FuturesRawData, self).__init__()
 
-        """
-        if you add another method to this you also need to add its blank dict here
-        """
-
-        protected = []
-        update_recalc(self, protected)
-
         setattr(self, "description", "futures")
 
+    @input
     def get_instrument_raw_carry_data(self, instrument_code):
         """
         Returns the 4 columns PRICE, CARRY, PRICE_CONTRACT, CARRY_CONTRACT
@@ -58,17 +49,11 @@ class FuturesRawData(RawData):
         2015-12-11 19:33:39  97.9875    NaN         201812         201903
         """
 
-        def _calc_raw_carry(system, instrument_code, this_stage_notused):
-            instrcarrydata = system.data.get_instrument_raw_carry_data(
-                instrument_code)
-            return instrcarrydata
+        instrcarrydata = self.parent.data.get_instrument_raw_carry_data(
+            instrument_code)
+        return instrcarrydata
 
-        raw_carry = self.parent.calc_or_cache("instrument_raw_carry_data",
-                                              instrument_code,
-                                              _calc_raw_carry, self)
-
-        return raw_carry
-
+    @diagnostic()
     def raw_futures_roll(self, instrument_code):
         """
         Returns the raw difference between price and carry
@@ -88,23 +73,16 @@ class FuturesRawData(RawData):
         dtype: float64
         """
 
-        def _calc_raw_futures_roll(system, instrument_code, this_stage):
+        carrydata = self.get_instrument_raw_carry_data(instrument_code)
+        raw_roll = carrydata.PRICE - carrydata.CARRY
 
-            carrydata = this_stage.get_instrument_raw_carry_data(
-                instrument_code)
-            raw_roll = carrydata.PRICE - carrydata.CARRY
+        raw_roll[raw_roll == 0] = np.nan
 
-            raw_roll[raw_roll == 0] = np.nan
-
-            raw_roll = uniquets(raw_roll)
-
-            return raw_roll
-
-        raw_roll = self.parent.calc_or_cache(
-            "raw_futures_roll", instrument_code, _calc_raw_futures_roll, self)
+        raw_roll = uniquets(raw_roll)
 
         return raw_roll
 
+    @diagnostic()
     def roll_differentials(self, instrument_code):
         """
         Work out the annualisation factor
@@ -123,20 +101,14 @@ class FuturesRawData(RawData):
         2015-12-11 19:33:39   -0.246407
         dtype: float64
         """
-        def _calc_roll_differentials(system, instrument_code, this_stage):
-            carrydata = this_stage.get_instrument_raw_carry_data(
-                instrument_code)
-            roll_diff = carrydata.apply(expiry_diff, 1)
+        carrydata = self.get_instrument_raw_carry_data(instrument_code)
+        roll_diff = carrydata.apply(expiry_diff, 1)
 
-            roll_diff = uniquets(roll_diff)
-
-            return roll_diff
-
-        roll_diff = self.parent.calc_or_cache(
-            "roll_differentials", instrument_code, _calc_roll_differentials, self)
+        roll_diff = uniquets(roll_diff)
 
         return roll_diff
 
+    @diagnostic()
     def annualised_roll(self, instrument_code):
         """
         Work out annualised futures roll
@@ -161,19 +133,14 @@ class FuturesRawData(RawData):
 
         """
 
-        def _calc_annualised_roll(system, instrument_code, this_stage):
-            rolldiffs = this_stage.roll_differentials(instrument_code)
-            rawrollvalues = this_stage.raw_futures_roll(instrument_code)
+        rolldiffs = self.roll_differentials(instrument_code)
+        rawrollvalues = self.raw_futures_roll(instrument_code)
 
-            annroll = rawrollvalues / rolldiffs
-
-            return annroll
-
-        annroll = self.parent.calc_or_cache(
-            "annualised_roll", instrument_code, _calc_annualised_roll, self)
+        annroll = rawrollvalues / rolldiffs
 
         return annroll
 
+    @diagnostic()
     def daily_annualised_roll(self, instrument_code):
         """
         Resample annualised roll to daily frequency
@@ -183,9 +150,9 @@ class FuturesRawData(RawData):
         :param instrument_code: instrument to get data for
         :type instrument_code: str
 
-        :returns: Tx4 pd.DataFrame
+        :returns: Tx1 pd.DataFrame
 
-        KEY OUTPUT
+
 
         >>> from systems.tests.testfuturesrawdata import get_test_object_futures
         >>> from systems.basesystem import System
@@ -197,17 +164,94 @@ class FuturesRawData(RawData):
         Freq: B, dtype: float64
         """
 
-        def _calc_daily_ann_roll(system, instrument_code, this_stage):
+        annroll = this_stage.annualised_roll(instrument_code)
+        annroll = annroll.resample("1H").mean()
+        return annroll
+            
+    @output()
+    def raw_carry(self, instrument_code):
+        """
+        Returns the raw carry (annualised roll, divided by annualised vol)
+        Only thing needed now is smoothing, that is done in the actual trading rule
 
-            annroll = this_stage.annualised_roll(instrument_code)
-            annroll = annroll.resample("1H").mean()
-            return annroll
+        Added to rawdata to support relative carry trading rule
 
-        ann_daily_roll = self.parent.calc_or_cache(
-            "daily_annualised_roll", instrument_code, _calc_daily_ann_roll, self)
+        :param instrument_code:
 
-        return ann_daily_roll
+        :return: Tx1 pd.DataFrame
+        """
 
+        daily_ann_roll = self.daily_annualised_roll(instrument_code)
+        vol=self.daily_returns_volatility(instrument_code)
+
+        ann_stdev = vol * ROOT_BDAYS_INYEAR
+        raw_carry = daily_ann_roll / ann_stdev
+
+        return raw_carry
+
+
+    @output()
+    def smoothed_carry(self, instrument_code, smooth_days=90):
+        """
+        Returns the smoothed raw carry
+        Added to rawdata to support relative carry trading rule
+
+        :param instrument_code:
+
+        :return: Tx1 pd.DataFrame
+        """
+
+        raw_carry = self.raw_carry(instrument_code)
+        smooth_carry = raw_carry.ewm(smooth_days).mean()
+
+        return smooth_carry
+
+
+    @diagnostic()
+    def _by_asset_class_median_carry_for_asset_class(self, asset_class):
+        """
+
+        :param asset_class:
+        :return:
+        """
+
+        instruments_in_asset_class = self.parent.data.all_instruments_in_asset_class(asset_class)
+
+        smoothed_carry_across_asset_class = [self.smoothed_carry(instrument_code)
+                                             for instrument_code in instruments_in_asset_class]
+
+        smoothed_carry_across_asset_class = pd.concat(smoothed_carry_across_asset_class, axis=1)
+
+        # we don't ffill before working out the median as this could lead to bad data
+        median_carry = smoothed_carry_across_asset_class.median(axis=1)
+
+        return median_carry
+
+
+    @output()
+    def median_carry_for_asset_class(self, instrument_code):
+        """
+        Median carry for the asset class relating to a given instrument
+
+
+        :param instrument_code: str
+        :return: pd.Series
+        """
+
+        asset_class = self.parent.data.asset_class_for_instrument(instrument_code)
+        median_carry = self._by_asset_class_median_carry_for_asset_class(asset_class)
+        instrument_carry = self.smoothed_carry(instrument_code)
+
+        # Align for an easy life
+        # As usual forward fill at last moment
+        median_carry = median_carry.reindex(instrument_carry.index).ffill()
+
+        return median_carry
+
+    # sys.data.get_instrument_asset_classes()
+
+
+    @output()
     def daily_denominator_price(self, instrument_code):
         """
         Gets daily prices for use with % volatility

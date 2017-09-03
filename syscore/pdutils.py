@@ -4,6 +4,8 @@ Utilities to help with pandas
 
 import pandas as pd
 import numpy as np
+from copy import copy
+
 from syscore.fileutils import get_filename_for_package
 from syscore.dateutils import BUSINESS_DAYS_IN_YEAR
 
@@ -35,31 +37,39 @@ def uniquets(x):
 
 def df_from_list(data):
     """
-    data frame from list
+    Create a single data frame from list of data frames
+
+    To preserve a unique time signature we add on 1..2..3... micro seconds to successive elements of the list
+
+    WARNING: SO THIS METHOD WON'T WORK WITH HIGH FREQUENCY DATA!
+
+    THIS WILL ALSO DESTROY ANY AUTOCORRELATION PROPERTIES
     """
     if isinstance(data, list):
         column_names = sorted(
             set(sum([list(data_item.columns) for data_item in data], [])))
         # ensure all are properly aligned
         # note we don't check that all the columns match here
-        data = [data_item[column_names] for data_item in data]
+        new_data = [data_item[column_names] for data_item in data]
 
         # add on an offset
-        for (offset_value, data_item) in enumerate(data):
+        for (offset_value, data_item) in enumerate(new_data):
             data_item.index = data_item.index + \
-                pd.Timedelta("%ds" % offset_value)
+                pd.Timedelta("%dus" % offset_value)
 
         # pooled
         # stack everything up
-        data = pd.concat(data, axis=0)
-        data = data.sort_index()
+        new_data = pd.concat(new_data, axis=0)
+        new_data = new_data.sort_index()
+    else:
+        # nothing to do here
+        new_data = copy(data)
 
-    return data
+    return new_data
 
 
 def must_haves_from_list(data):
-    must_haves_list = [must_have_item(data_item)
-                       for data_item in data]
+    must_haves_list = [must_have_item(data_item) for data_item in data]
     must_haves = list(set(sum(must_haves_list, [])))
 
     return must_haves
@@ -226,7 +236,32 @@ def drawdown(x):
     return x - maxx
 
 
-def create_arbitrary_pdseries(data_list, date_start=pd.datetime(1980,1,1), freq="B"):
+def from_dict_of_values_to_df(data_dict, ts_index, columns=None):
+    """
+    Turn a set of fixed values into a pd.dataframe
+
+    :param data_dict: A dict of scalars
+    :param ts_index: A timeseries index
+    :param columns: (optional) A list of str to align the column names to [must have entries in data_dict keys]
+    :return: pd.dataframe, column names from data_dict, values repeated scalars
+    """
+
+    if columns is None:
+        columns = data_dict.keys()
+
+    columns_as_list = list(columns)
+
+    numeric_values = dict([(keyname, [data_dict[keyname]] * len(ts_index))
+                           for keyname in columns_as_list])
+
+    pd_dataframe = pd.DataFrame(numeric_values, ts_index)
+
+    return pd_dataframe
+
+
+def create_arbitrary_pdseries(data_list,
+                              date_start=pd.datetime(1980, 1, 1),
+                              freq="B"):
     """
     Return a pandas Series with an arbitrary date index
 
@@ -248,11 +283,39 @@ def create_arbitrary_pdseries(data_list, date_start=pd.datetime(1980,1,1), freq=
     Freq: D, dtype: int64
     """
 
-    date_index=pd.date_range(start=date_start, periods=len(data_list), freq=freq)
+    date_index = pd.date_range(
+        start=date_start, periods=len(data_list), freq=freq)
 
-    pdseries=pd.Series(data_list, index=date_index)
+    pdseries = pd.Series(data_list, index=date_index)
 
     return pdseries
+
+
+def dataframe_pad(starting_df, column_list, padwith=0.0):
+    """
+    Takes a dataframe and adds extra columns if neccessary so we end up with columns named column_list
+
+    :param starting_df: A pd.dataframe with named columns
+    :param column_list: A list of column names
+    :param padwith: The value to pad missing columns with
+    :return: pd.Dataframe
+    """
+
+    def _pad_column(column_name, starting_df, padwith):
+        if column_name in starting_df.columns:
+            return starting_df[column_name]
+        else:
+            return pd.Series([0.0] * len(starting_df.index), starting_df.index)
+
+    new_data = [
+        _pad_column(column_name, starting_df, padwith)
+        for column_name in column_list
+    ]
+
+    new_df = pd.concat(new_data, axis=1)
+    new_df.columns = column_list
+
+    return new_df
 
 
 if __name__ == '__main__':

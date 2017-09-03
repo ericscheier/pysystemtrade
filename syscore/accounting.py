@@ -16,14 +16,13 @@ from syscore.algos import robust_vol_calc
 from syscore.pdutils import drawdown
 from syscore.dateutils import BUSINESS_DAYS_IN_YEAR, ROOT_BDAYS_INYEAR, WEEKS_IN_YEAR, ROOT_WEEKS_IN_YEAR
 from syscore.dateutils import MONTHS_IN_YEAR, ROOT_MONTHS_IN_YEAR
-
 """
 some defaults
 """
 DEFAULT_CAPITAL = 10000000.0
 DEFAULT_ANN_RISK_TARGET = 0.16
-DEFAULT_DAILY_CAPITAL = (DEFAULT_CAPITAL *
-                         DEFAULT_ANN_RISK_TARGET / ROOT_BDAYS_INYEAR)
+DEFAULT_DAILY_CAPITAL = (
+    DEFAULT_CAPITAL * DEFAULT_ANN_RISK_TARGET / ROOT_BDAYS_INYEAR)
 
 
 def account_test(ac1, ac2):
@@ -44,12 +43,18 @@ def account_test(ac1, ac2):
     ac1_common = ac1.cumsum().reindex(common_ts, method="ffill").diff().values
     ac2_common = ac2.cumsum().reindex(common_ts, method="ffill").diff().values
 
-    missing_values = [idx for idx in range(len(common_ts))
-                      if (np.isnan(ac1_common[idx]) or np.isnan(ac2_common[idx]))]
-    ac1_common = [ac1_common[idx]
-                  for idx in range(len(common_ts)) if idx not in missing_values]
-    ac2_common = [ac2_common[idx]
-                  for idx in range(len(common_ts)) if idx not in missing_values]
+    missing_values = [
+        idx for idx in range(len(common_ts))
+        if (np.isnan(ac1_common[idx]) or np.isnan(ac2_common[idx]))
+    ]
+    ac1_common = [
+        ac1_common[idx] for idx in range(len(common_ts))
+        if idx not in missing_values
+    ]
+    ac2_common = [
+        ac2_common[idx] for idx in range(len(common_ts))
+        if idx not in missing_values
+    ]
 
     ac1_common = ac1_common / np.nanstd(ac1_common)
     ac2_common = ac2_common / np.nanstd(ac2_common)
@@ -59,9 +64,15 @@ def account_test(ac1, ac2):
     return (diff, ttest_rel(ac1_common, ac2_common))
 
 
-def pandl_with_data(price, trades=None, marktomarket=True, positions=None,
-                    delayfill=True, roundpositions=False,
-                    get_daily_returns_volatility=None, forecast=None, fx=None,
+def pandl_with_data(price,
+                    trades=None,
+                    marktomarket=True,
+                    positions=None,
+                    delayfill=True,
+                    roundpositions=False,
+                    get_daily_returns_volatility=None,
+                    forecast=None,
+                    fx=None,
                     daily_risk_capital=None,
                     value_of_price_point=1.0):
     """
@@ -135,8 +146,7 @@ def pandl_with_data(price, trades=None, marktomarket=True, positions=None,
 
     if fx is None:
         # assume it's 1.0
-        use_fx = pd.Series([1.0] * len(price.index),
-                           index=price.index)
+        use_fx = pd.Series([1.0] * len(price.index), index=price.index)
     else:
         fx.drop_duplicates(inplace=True)
         use_fx = fx.reindex(price.index, method="ffill")
@@ -145,12 +155,9 @@ def pandl_with_data(price, trades=None, marktomarket=True, positions=None,
 
         prices_to_use = copy(price)
         if positions is None:
-            positions = get_positions_from_forecasts(price,
-                                                     get_daily_returns_volatility,
-                                                     forecast,
-                                                     use_fx,
-                                                     value_of_price_point,
-                                                     daily_risk_capital)
+            positions = get_positions_from_forecasts(
+                price, get_daily_returns_volatility, forecast, use_fx,
+                value_of_price_point, daily_risk_capital)
         if roundpositions:
             use_positions = positions.round()
         else:
@@ -192,16 +199,17 @@ def pandl_with_data(price, trades=None, marktomarket=True, positions=None,
     instr_ccy_returns = cum_trades.shift(
         1) * price_returns * value_of_price_point
 
-    instr_ccy_returns = instr_ccy_returns.cumsum().ffill().reindex(price.index).diff()
+    instr_ccy_returns = instr_ccy_returns.cumsum().ffill().reindex(
+        price.index).diff()
     base_ccy_returns = instr_ccy_returns * use_fx
 
-    return (cum_trades, trades_to_use, instr_ccy_returns,
-            base_ccy_returns, use_fx, value_of_price_point)
+    return (cum_trades, trades_to_use, instr_ccy_returns, base_ccy_returns,
+            use_fx, value_of_price_point)
 
 
 def get_positions_from_forecasts(price, get_daily_returns_volatility, forecast,
-                                 use_fx, value_of_price_point, daily_risk_capital,
-                                 **kwargs):
+                                 use_fx, value_of_price_point,
+                                 daily_risk_capital, **kwargs):
     """
     Work out position using forecast, volatility, use_fx, value_of_price_point
     (this will be for an arbitrary daily risk target)
@@ -242,7 +250,6 @@ def get_positions_from_forecasts(price, get_daily_returns_volatility, forecast,
 
     if get_daily_returns_volatility is None:
         get_daily_returns_volatility = robust_vol_calc(price.diff(), **kwargs)
-
     """
     Herein the proof why this position calculation is correct (see chapters
     5-11 of 'systematic trading' book)
@@ -265,9 +272,7 @@ def get_positions_from_forecasts(price, get_daily_returns_volatility, forecast,
     multiplier = daily_risk_capital * 1.0 * 1.0 / 10.0
 
     denominator = (
-        value_of_price_point *
-        get_daily_returns_volatility *
-        use_fx)
+        value_of_price_point * get_daily_returns_volatility * use_fx)
 
     numerator = forecast * multiplier
 
@@ -297,8 +302,8 @@ class accountCurveSingleElementOneFreq(pd.Series):
 
     """
 
-    def __init__(self, returns_df, capital,
-                 weighted_flag=False, frequency="D"):
+    def __init__(self, returns_df, capital, weighted_flag=False,
+                 frequency="D"):
         """
         :param returns_df: series of returns
         :type returns_df: Tx1 pd.Series
@@ -316,11 +321,17 @@ class accountCurveSingleElementOneFreq(pd.Series):
         super().__init__(returns_df)
 
         try:
-            returns_scalar = dict(D=BUSINESS_DAYS_IN_YEAR, W=WEEKS_IN_YEAR,
-                                  M=MONTHS_IN_YEAR, Y=1)[frequency]
+            returns_scalar = dict(
+                D=BUSINESS_DAYS_IN_YEAR,
+                W=WEEKS_IN_YEAR,
+                M=MONTHS_IN_YEAR,
+                Y=1)[frequency]
 
-            vol_scalar = dict(D=ROOT_BDAYS_INYEAR, W=ROOT_WEEKS_IN_YEAR,
-                              M=ROOT_MONTHS_IN_YEAR, Y=1)[frequency]
+            vol_scalar = dict(
+                D=ROOT_BDAYS_INYEAR,
+                W=ROOT_WEEKS_IN_YEAR,
+                M=ROOT_MONTHS_IN_YEAR,
+                Y=1)[frequency]
 
         except KeyError:
             raise Exception("Not a frequency %s" % frequency)
@@ -362,7 +373,8 @@ class accountCurveSingleElementOneFreq(pd.Series):
     def as_cumulative(self):
         if isinstance(self.capital, pd.core.series.Series):
             print(
-                "You shouldn't cumulate returns when capital is varying. Using the first value of capital only")
+                "You shouldn't cumulate returns when capital is varying. Using the first value of capital only"
+            )
             use_capital = self.capital[0]
         else:
             use_capital = self.capital
@@ -490,9 +502,7 @@ class accountCurveSingleElementOneFreq(pd.Series):
 
     def rolling_ann_std(self, window=40):
         y = self.as_ts().rolling(
-            window,
-            min_periods=4,
-            center=True).std().to_frame()
+            window, min_periods=4, center=True).std().to_frame()
         return y * self._vol_scalar
 
     def t_test(self):
@@ -506,12 +516,12 @@ class accountCurveSingleElementOneFreq(pd.Series):
 
     def stats(self):
 
-        stats_list = ["min", "max", "median", "mean", "std", "skew",
-                      "ann_mean", "ann_std", "sharpe", "sortino",
-                      "avg_drawdown", "time_in_drawdown",
-                      "calmar", "avg_return_to_drawdown",
-                      "avg_loss", "avg_gain", "gaintolossratio", "profitfactor", "hitrate",
-                      "t_stat", "p_value"]
+        stats_list = [
+            "min", "max", "median", "mean", "std", "skew", "ann_mean",
+            "ann_std", "sharpe", "sortino", "avg_drawdown", "time_in_drawdown",
+            "calmar", "avg_return_to_drawdown", "avg_loss", "avg_gain",
+            "gaintolossratio", "profitfactor", "hitrate", "t_stat", "p_value"
+        ]
 
         build_stats = []
         for stat_name in stats_list:
@@ -520,7 +530,8 @@ class accountCurveSingleElementOneFreq(pd.Series):
             build_stats.append((stat_name, "{0:.4g}".format(ans)))
 
         comment1 = ("You can also plot / print:", [
-                    "rolling_ann_std", "drawdown", "curve", "percent", "cumulative"])
+            "rolling_ann_std", "drawdown", "curve", "percent", "cumulative"
+        ])
 
         return [build_stats, comment1]
 
@@ -561,43 +572,32 @@ class accountCurveSingleElement(accountCurveSingleElementOneFreq):
         annual_returns = returns_df.resample("A").sum()
 
         super().__init__(
-            daily_returns,
-            capital,
-            frequency="D",
-            weighted_flag=weighted_flag)
+            daily_returns, capital, frequency="D", weighted_flag=weighted_flag)
 
-        setattr(
-            self,
-            "daily",
-            accountCurveSingleElementOneFreq(
-                daily_returns,
-                capital,
-                frequency="D",
-                weighted_flag=weighted_flag))
-        setattr(
-            self,
-            "weekly",
-            accountCurveSingleElementOneFreq(
-                weekly_returns,
-                capital,
-                frequency="W",
-                weighted_flag=weighted_flag))
-        setattr(
-            self,
-            "monthly",
-            accountCurveSingleElementOneFreq(
-                monthly_returns,
-                capital,
-                frequency="M",
-                weighted_flag=weighted_flag))
-        setattr(
-            self,
-            "annual",
-            accountCurveSingleElementOneFreq(
-                annual_returns,
-                capital,
-                frequency="Y",
-                weighted_flag=weighted_flag))
+        setattr(self, "daily",
+                accountCurveSingleElementOneFreq(
+                    daily_returns,
+                    capital,
+                    frequency="D",
+                    weighted_flag=weighted_flag))
+        setattr(self, "weekly",
+                accountCurveSingleElementOneFreq(
+                    weekly_returns,
+                    capital,
+                    frequency="W",
+                    weighted_flag=weighted_flag))
+        setattr(self, "monthly",
+                accountCurveSingleElementOneFreq(
+                    monthly_returns,
+                    capital,
+                    frequency="M",
+                    weighted_flag=weighted_flag))
+        setattr(self, "annual",
+                accountCurveSingleElementOneFreq(
+                    annual_returns,
+                    capital,
+                    frequency="Y",
+                    weighted_flag=weighted_flag))
 
     def __repr__(self):
         return super().__repr__() + \
@@ -614,8 +614,12 @@ class accountCurveSingle(accountCurveSingleElement):
 
     """
 
-    def __init__(self, gross_returns, net_returns,
-                 costs, capital, weighted_flag=False):
+    def __init__(self,
+                 gross_returns,
+                 net_returns,
+                 costs,
+                 capital,
+                 weighted_flag=False):
         """
         :param gross_returns: series of returns, no costs applied
         :type gross_returns: Tx1 pd.Series
@@ -637,22 +641,15 @@ class accountCurveSingle(accountCurveSingleElement):
 
         super().__init__(net_returns, capital, weighted_flag=weighted_flag)
 
-        setattr(
-            self,
-            "net",
-            accountCurveSingleElement(
-                net_returns,
-                capital,
-                weighted_flag=weighted_flag))
-        setattr(
-            self,
-            "gross",
-            accountCurveSingleElement(
-                gross_returns,
-                capital,
-                weighted_flag=weighted_flag))
-        setattr(self, "costs", accountCurveSingleElement(
-            costs, capital, weighted_flag=weighted_flag))
+        setattr(self, "net",
+                accountCurveSingleElement(
+                    net_returns, capital, weighted_flag=weighted_flag))
+        setattr(self, "gross",
+                accountCurveSingleElement(
+                    gross_returns, capital, weighted_flag=weighted_flag))
+        setattr(self, "costs",
+                accountCurveSingleElement(
+                    costs, capital, weighted_flag=weighted_flag))
 
     def __repr__(self):
         return super().__repr__() + \
@@ -665,18 +662,23 @@ class accountCurveSingle(accountCurveSingleElement):
         :returns: Tx3 pd.DataFrame
         """
 
-        ans = pd.concat([self.net.as_ts(), self.gross.as_ts(),
-                         self.costs.as_ts()], axis=1)
+        ans = pd.concat(
+            [self.net.as_ts(), self.gross.as_ts(), self.costs.as_ts()], axis=1)
         ans.columns = ["net", "gross", "costs"]
 
         return ans
 
 
 class accountCurve(accountCurveSingle):
-
-    def __init__(self, price=None, cash_costs=None, SR_cost=None,
-                 capital=None, ann_risk_target=None, pre_calc_data=None,
-                 weighted_flag=False, weighting=None,
+    def __init__(self,
+                 price=None,
+                 cash_costs=None,
+                 SR_cost=None,
+                 capital=None,
+                 ann_risk_target=None,
+                 pre_calc_data=None,
+                 weighted_flag=False,
+                 weighting=None,
                  apply_weight_to_costs_only=False,
                  **kwargs):
         """
@@ -716,8 +718,8 @@ class accountCurve(accountCurveSingle):
             (returns_data, base_capital, costs_base_ccy,
              unweighted_instr_ccy_pandl) = pre_calc_data
 
-            (cum_trades, trades_to_use, instr_ccy_returns,
-                base_ccy_returns, use_fx, value_of_price_point) = returns_data
+            (cum_trades, trades_to_use, instr_ccy_returns, base_ccy_returns,
+             use_fx, value_of_price_point) = returns_data
 
         else:
             """
@@ -735,22 +737,28 @@ class accountCurve(accountCurveSingle):
             returns_data = pandl_with_data(
                 price, daily_risk_capital=daily_risk_capital, **kwargs)
 
-            (cum_trades, trades_to_use, instr_ccy_returns,
-                base_ccy_returns, use_fx, value_of_price_point) = returns_data
+            (cum_trades, trades_to_use, instr_ccy_returns, base_ccy_returns,
+             use_fx, value_of_price_point) = returns_data
 
             # always returns a time series
             (costs_base_ccy, costs_instr_ccy) = calc_costs(
                 returns_data, cash_costs, SR_cost, ann_risk)
 
             # keep track of this
-            unweighted_instr_ccy_pandl = dict(gross=instr_ccy_returns, costs=costs_instr_ccy,
-                                              net=instr_ccy_returns + costs_instr_ccy)
+            unweighted_instr_ccy_pandl = dict(
+                gross=instr_ccy_returns,
+                costs=costs_instr_ccy,
+                net=instr_ccy_returns + costs_instr_ccy)
 
         # Initially we have an unweighted version
 
-        self._calc_and_set_returns(base_ccy_returns, costs_base_ccy, base_capital,
-                                   weighted_flag=weighted_flag, weighting=weighting,
-                                   apply_weight_to_costs_only=apply_weight_to_costs_only)
+        self._calc_and_set_returns(
+            base_ccy_returns,
+            costs_base_ccy,
+            base_capital,
+            weighted_flag=weighted_flag,
+            weighting=weighting,
+            apply_weight_to_costs_only=apply_weight_to_costs_only)
 
         # Save all kinds of useful statistics
         setattr(self, "unweighted_instr_ccy_pandl", unweighted_instr_ccy_pandl)
@@ -760,8 +768,12 @@ class accountCurve(accountCurveSingle):
         setattr(self, "fx", use_fx)
         setattr(self, "value_of_price_point", value_of_price_point)
 
-    def _calc_and_set_returns(self, base_ccy_returns, costs_base_ccy, base_capital,
-                              weighted_flag=False, weighting=None,
+    def _calc_and_set_returns(self,
+                              base_ccy_returns,
+                              costs_base_ccy,
+                              base_capital,
+                              weighted_flag=False,
+                              weighting=None,
                               apply_weight_to_costs_only=False):
         """
         This hidden method is called when we setup the account curve, to
@@ -815,7 +827,8 @@ class accountCurve(accountCurveSingle):
         setattr(self, "weighting", use_weighting)
 
     def __repr__(self):
-        return super().__repr__() + "\n Use object.calc_data() to see calculation details"
+        return super().__repr__(
+        ) + "\n Use object.calc_data() to see calculation details"
 
     def calc_data(self):
         """
@@ -823,8 +836,10 @@ class accountCurve(accountCurveSingle):
 
         :returns: dictionary of float
         """
-        calc_items = ["cum_trades", "trades_to_use", "unweighted_instr_ccy_pandl",
-                      "capital", "weighting", "fx", "value_of_price_point"]
+        calc_items = [
+            "cum_trades", "trades_to_use", "unweighted_instr_ccy_pandl",
+            "capital", "weighting", "fx", "value_of_price_point"
+        ]
 
         calc_dict = dict([(calc_name, getattr(self, calc_name))
                           for calc_name in calc_items])
@@ -832,8 +847,10 @@ class accountCurve(accountCurveSingle):
         return calc_dict
 
 
-def weighted(account_curve, weighting,
-             apply_weight_to_costs_only=False, allow_reweighting=False):
+def weighted(account_curve,
+             weighting,
+             apply_weight_to_costs_only=False,
+             allow_reweighting=False):
     """
     Creates a copy of account curve with weights applied
 
@@ -866,21 +883,19 @@ def weighted(account_curve, weighting,
     unweighted_instr_ccy_pandl = copy(account_curve.unweighted_instr_ccy_pandl)
 
     returns_data = (account_curve.cum_trades, account_curve.trades_to_use,
-                    unweighted_instr_ccy_pandl["gross"],
-                    gross_returns, account_curve.fx, account_curve.value_of_price_point)
+                    unweighted_instr_ccy_pandl["gross"], gross_returns,
+                    account_curve.fx, account_curve.value_of_price_point)
 
-    pre_calc_data = (
-        returns_data,
-        base_capital,
-        costs_base_ccy,
-        unweighted_instr_ccy_pandl)
+    pre_calc_data = (returns_data, base_capital, costs_base_ccy,
+                     unweighted_instr_ccy_pandl)
 
     # Create a cloned account curve with the pre calculated data
     # recalculate the returns with weighting applied
-    new_account_curve = accountCurve(pre_calc_data=pre_calc_data,
-                                     weighted_flag=True,
-                                     weighting=weighting,
-                                     apply_weight_to_costs_only=apply_weight_to_costs_only)
+    new_account_curve = accountCurve(
+        pre_calc_data=pre_calc_data,
+        weighted_flag=True,
+        weighting=weighting,
+        apply_weight_to_costs_only=apply_weight_to_costs_only)
 
     return new_account_curve
 
@@ -907,8 +922,8 @@ def calc_costs(returns_data, cash_costs, SR_cost, ann_risk):
 
     """
 
-    (cum_trades, trades_to_use, instr_ccy_returns,
-        base_ccy_returns, use_fx, value_of_price_point) = returns_data
+    (cum_trades, trades_to_use, instr_ccy_returns, base_ccy_returns, use_fx,
+     value_of_price_point) = returns_data
 
     if SR_cost is not None:
         # use SR_cost
@@ -919,12 +934,11 @@ def calc_costs(returns_data, cash_costs, SR_cost, ann_risk):
     elif cash_costs is not None:
         # use cost per blocks
 
-        (value_total_per_block,
-         value_of_pertrade_commission,
+        (value_total_per_block, value_of_pertrade_commission,
          percentage_cost) = cash_costs
 
         trades_in_blocks = trades_to_use.abs()
-        costs_blocks = - trades_in_blocks * value_total_per_block
+        costs_blocks = -trades_in_blocks * value_total_per_block
 
         value_of_trades = trades_in_blocks * value_of_price_point
         costs_percentage = percentage_cost * value_of_trades
@@ -932,11 +946,12 @@ def calc_costs(returns_data, cash_costs, SR_cost, ann_risk):
         traded = trades_to_use[trades_to_use > 0]
 
         if len(traded) == 0:
-            costs_pertrade = pd.Series(
-                [0.0] * len(cum_trades.index), cum_trades.index)
+            costs_pertrade = pd.Series([0.0] * len(cum_trades.index),
+                                       cum_trades.index)
         else:
             costs_pertrade = pd.Series(
-                [value_of_pertrade_commission] * len(traded.index), traded.index)
+                [value_of_pertrade_commission] * len(traded.index),
+                traded.index)
             costs_pertrade = costs_pertrade.reindex(trades_to_use.index)
 
         # everything on the trades index, so can do this:s
@@ -948,7 +963,8 @@ def calc_costs(returns_data, cash_costs, SR_cost, ann_risk):
 
     # fx is on master (price timestamp)
     # costs_instr_ccy needs downsampling
-    costs_instr_ccy = costs_instr_ccy.cumsum().ffill().reindex(use_fx.index).diff()
+    costs_instr_ccy = costs_instr_ccy.cumsum().ffill().reindex(
+        use_fx.index).diff()
 
     costs_base_ccy = costs_instr_ccy * use_fx.ffill()
     costs_base_ccy[np.isnan(costs_base_ccy)] = 0.0
@@ -997,8 +1013,7 @@ def resolve_capital(ts_to_scale_to, capital=None, ann_risk_target=None):
 
     if isinstance(base_capital, float) or isinstance(base_capital, int):
         ts_capital = pd.Series(
-            [base_capital] * len(ts_to_scale_to),
-            index=ts_to_scale_to.index)
+            [base_capital] * len(ts_to_scale_to), index=ts_to_scale_to.index)
         base_capital = float(base_capital)
     else:
         ts_capital = copy(base_capital)
@@ -1069,8 +1084,12 @@ def total_from_list(list_of_ac_curves, asset_columns, capital):
             return
 
         # at least some time series
-        capital = pd.concat([_resolve_capital_for_total(
-            x.capital, pdframe) for x in list_of_ac_curves], axis=1)
+        capital = pd.concat(
+            [
+                _resolve_capital_for_total(x.capital, pdframe)
+                for x in list_of_ac_curves
+            ],
+            axis=1)
 
         # should all be the same, but just in case ...
         capital = np.mean(capital, axis=1)
@@ -1090,8 +1109,12 @@ class accountCurveGroupForType(accountCurveSingleElement):
     an accountCurveGroup for one cost type (gross, net, costs)
     """
 
-    def __init__(self, acc_curve_for_type_list, asset_columns,
-                 capital=None, weighted_flag=False, curve_type="net"):
+    def __init__(self,
+                 acc_curve_for_type_list,
+                 asset_columns,
+                 capital=None,
+                 weighted_flag=False,
+                 curve_type="net"):
         """
         Create a group of account curves from a list and some column names
 
@@ -1129,10 +1152,11 @@ class accountCurveGroupForType(accountCurveSingleElement):
         :type capital: None, float, or pd.Series
 
         """
-        (acc_total, capital) = total_from_list(
-            acc_curve_for_type_list, asset_columns, capital)
+        (acc_total, capital) = total_from_list(acc_curve_for_type_list,
+                                               asset_columns, capital)
 
-        super().__init__(acc_total, weighted_flag=weighted_flag, capital=capital)
+        super().__init__(
+            acc_total, weighted_flag=weighted_flag, capital=capital)
 
         setattr(self, "to_list", acc_curve_for_type_list)
         setattr(self, "asset_columns", asset_columns)
@@ -1185,27 +1209,33 @@ class accountCurveGroupForType(accountCurveSingleElement):
 
         :returns: dict of floats
         """
+
         def _len_nonzero(ac_curve):
             return_df = ac_curve.as_ts()
             ans = len([x for x in return_df.values if not np.isnan(x)])
 
             return ans
 
-        time_weights_dict = dict([(asset_name, _len_nonzero(ac_curve)) for (asset_name, ac_curve)
-                                  in zip(self.asset_columns, self.to_list)])
+        time_weights_dict = dict(
+            [(asset_name, _len_nonzero(ac_curve))
+             for (asset_name,
+                  ac_curve) in zip(self.asset_columns, self.to_list)])
 
         total_weight = sum(time_weights_dict.values())
 
-        time_weights_dict = dict([(asset_name, weight / total_weight) for (asset_name, weight)
-                                  in time_weights_dict.items()])
+        time_weights_dict = dict([(asset_name, weight / total_weight)
+                                  for (asset_name,
+                                       weight) in time_weights_dict.items()])
 
         return time_weights_dict
 
 
 class statsDict(dict):
-
-    def __init__(self, acgroup_for_type, stat_method,
-                 freq="daily", percent=True):
+    def __init__(self,
+                 acgroup_for_type,
+                 stat_method,
+                 freq="daily",
+                 percent=True):
         """
         Create a dictionary summarising statistics across a group of account curves
 
@@ -1231,7 +1261,8 @@ class statsDict(dict):
 
             return stat_method_function()
 
-        dict_values = [(col_name, _get_stat_from_acobject(acgroup_for_type[col_name], stat_method, freq, percent))
+        dict_values = [(col_name, _get_stat_from_acobject(
+            acgroup_for_type[col_name], stat_method, freq, percent))
                        for col_name in column_names]
 
         super().__init__(dict_values)
@@ -1268,8 +1299,10 @@ class statsDict(dict):
         :returns: float
         """
         wts = self.weightings(timeweighted)
-        ans = sum([asset_value * wts[asset_name]
-                   for (asset_name, asset_value) in self.items()])
+        ans = sum([
+            asset_value * wts[asset_name]
+            for (asset_name, asset_value) in self.items()
+        ])
 
         return ans
 
@@ -1285,8 +1318,10 @@ class statsDict(dict):
 
         wts = self.weightings(timeweighted)
         avg = self.mean(timeweighted)
-        ans = sum([wts[asset_name] * (asset_value - avg)**2
-                   for (asset_name, asset_value) in self.items()])**.5
+        ans = sum([
+            wts[asset_name] * (asset_value - avg)**2
+            for (asset_name, asset_value) in self.items()
+        ])**.5
 
         return ans
 
@@ -1333,9 +1368,11 @@ class statsDict(dict):
 
 
 class accountCurveGroup(accountCurveSingleElement):
-
-    def __init__(self, acc_curve_list, asset_columns,
-                 capital=None, weighted_flag=None):
+    def __init__(self,
+                 acc_curve_list,
+                 asset_columns,
+                 capital=None,
+                 weighted_flag=None):
         """
         Create a group of account curves from a list and some column names
 
@@ -1382,7 +1419,7 @@ class accountCurveGroup(accountCurveSingleElement):
         if weighted_flag is None:
             weighted_flag = [x.weighted_flag for x in acc_curve_list]
             if any(weighted_flag):
-                if not(all(weighted_flag)):
+                if not (all(weighted_flag)):
                     raise Exception(
                         "Can't mix weighted_flag and unweighted account curves")
                 else:
@@ -1394,25 +1431,32 @@ class accountCurveGroup(accountCurveSingleElement):
         gross_list = [getattr(x, "gross") for x in acc_curve_list]
         costs_list = [getattr(x, "costs") for x in acc_curve_list]
 
-        acc_list_net = accountCurveGroupForType(net_list, asset_columns=asset_columns,
-                                                capital=capital,
-                                                weighted_flag=weighted_flag,
-                                                curve_type="net")
+        acc_list_net = accountCurveGroupForType(
+            net_list,
+            asset_columns=asset_columns,
+            capital=capital,
+            weighted_flag=weighted_flag,
+            curve_type="net")
 
-        acc_list_gross = accountCurveGroupForType(gross_list, asset_columns=asset_columns,
-                                                  capital=capital,
-                                                  weighted_flag=weighted_flag,
-                                                  curve_type="gross")
+        acc_list_gross = accountCurveGroupForType(
+            gross_list,
+            asset_columns=asset_columns,
+            capital=capital,
+            weighted_flag=weighted_flag,
+            curve_type="gross")
 
-        acc_list_costs = accountCurveGroupForType(costs_list, asset_columns=asset_columns,
-                                                  capital=capital,
-                                                  weighted_flag=weighted_flag,
-                                                  curve_type="costs")
+        acc_list_costs = accountCurveGroupForType(
+            costs_list,
+            asset_columns=asset_columns,
+            capital=capital,
+            weighted_flag=weighted_flag,
+            curve_type="costs")
 
-        (acc_total, capital) = total_from_list(
-            net_list, asset_columns, capital)
+        (acc_total, capital) = total_from_list(net_list, asset_columns,
+                                               capital)
 
-        super().__init__(acc_total, weighted_flag=weighted_flag, capital=capital)
+        super().__init__(
+            acc_total, weighted_flag=weighted_flag, capital=capital)
 
         setattr(self, "net", acc_list_net)
         setattr(self, "gross", acc_list_gross)
@@ -1491,8 +1535,8 @@ class accountCurveGroup(accountCurveSingleElement):
         :returns: Tx3 pd.Dataframe
         """
 
-        ans = pd.concat([self.net.as_ts(), self.gross.as_ts(),
-                         self.costs.as_ts()], axis=1)
+        ans = pd.concat(
+            [self.net.as_ts(), self.gross.as_ts(), self.costs.as_ts()], axis=1)
         ans.columns = ["net", "gross", "costs"]
 
         return ans
@@ -1520,26 +1564,38 @@ class returnsStack(accountCurveSingle):
         curve_type_list = ["gross", "net", "costs"]
 
         def _collapse_one_curve_type(returns_list, curve_type):
-            collapsed_values = sum(
-
-                [list(getattr(returns, curve_type).iloc[:, 0].values)
-                 for returns in returns_list], [])
+            collapsed_values = sum([
+                list(getattr(returns, curve_type).iloc[:, 0].values)
+                for returns in returns_list
+            ], [])
 
             return collapsed_values
 
-        collapsed_curves_values = dict([(curve_type, _collapse_one_curve_type(returns_list, curve_type))
-                                        for curve_type in curve_type_list])
+        collapsed_curves_values = dict([(curve_type, _collapse_one_curve_type(
+            returns_list, curve_type)) for curve_type in curve_type_list])
 
         # We set this to an arbitrary index so we can make an account curve
 
-        gross_returns_df = pd.Series(collapsed_curves_values["gross"],
-                                     pd.date_range(start=bs_index_to_use[0], periods=len(collapsed_curves_values["gross"]), freq="B"))
+        gross_returns_df = pd.Series(
+            collapsed_curves_values["gross"],
+            pd.date_range(
+                start=bs_index_to_use[0],
+                periods=len(collapsed_curves_values["gross"]),
+                freq="B"))
 
-        net_returns_df = pd.Series(collapsed_curves_values["net"],
-                                   pd.date_range(start=bs_index_to_use[0], periods=len(collapsed_curves_values["net"]), freq="B"))
+        net_returns_df = pd.Series(
+            collapsed_curves_values["net"],
+            pd.date_range(
+                start=bs_index_to_use[0],
+                periods=len(collapsed_curves_values["net"]),
+                freq="B"))
 
-        costs_returns_df = pd.Series(collapsed_curves_values["costs"],
-                                     pd.date_range(start=bs_index_to_use[0], periods=len(collapsed_curves_values["costs"]), freq="B"))
+        costs_returns_df = pd.Series(
+            collapsed_curves_values["costs"],
+            pd.date_range(
+                start=bs_index_to_use[0],
+                periods=len(collapsed_curves_values["costs"]),
+                freq="B"))
 
         super().__init__(gross_returns_df, net_returns_df, costs_returns_df)
 
@@ -1559,11 +1615,9 @@ class returnsStack(accountCurveSingle):
 
         :returns: accountCurveGroup, one element for each of no_runs
         """
-        values_to_sample_from = dict(gross=list(getattr(self, "gross").iloc[:, 0].values),
-                                     net=list(
-            getattr(
-                self, "net").iloc[
-                :, 0].values),
+        values_to_sample_from = dict(
+            gross=list(getattr(self, "gross").iloc[:, 0].values),
+            net=list(getattr(self, "net").iloc[:, 0].values),
             costs=list(getattr(self, "costs").iloc[:, 0].values))
 
         size_of_bucket = len(self.index)
@@ -1578,81 +1632,43 @@ class returnsStack(accountCurveSingle):
 
         bs_list = []
         for notUsed in range(no_runs):
-            sample = [int(round(random.uniform(0, size_of_bucket - 1)))
-                      for notUsed2 in range(length)]
+            sample = [
+                int(round(random.uniform(0, size_of_bucket - 1)))
+                for notUsed2 in range(length)
+            ]
 
             # each element of accountCurveGroup is an accountCurveSingle
             bs_list.append(
                 accountCurveSingle(
-                    pd.Series([values_to_sample_from["gross"][xidx]
-                               for xidx in sample], index=index_to_use),
-                    pd.Series([values_to_sample_from["net"][xidx]
-                               for xidx in sample], index=index_to_use),
-                    pd.Series([values_to_sample_from["costs"][xidx]
-                               for xidx in sample], index=index_to_use)
-
-                )
-            )
+                    pd.Series(
+                        [
+                            values_to_sample_from["gross"][xidx]
+                            for xidx in sample
+                        ],
+                        index=index_to_use),
+                    pd.Series(
+                        [
+                            values_to_sample_from["net"][xidx]
+                            for xidx in sample
+                        ],
+                        index=index_to_use),
+                    pd.Series(
+                        [
+                            values_to_sample_from["costs"][xidx]
+                            for xidx in sample
+                        ],
+                        index=index_to_use)))
 
         asset_columns = ["b%d" % idx for idx in range(no_runs)]
 
         return accountCurveGroup(bs_list, asset_columns)
 
 
-def decompose_group_pandl(pandl_list, pandl_this_code=None,
-                          pool_costs=True, backfillavgcosts=True):
-    """
-    Given a pand_list (list of accountCurveGroup objects) return a 2-tuple of two pandas data frames;
-      one is the gross costs and one is the net costs.
 
-      Single element case is trivial
-
-      If pool_costs is True, then the costs from pandl_list are used without any changes.
-
-      If pool_costs is False, then the costs from pandl_this_code are used and applied to the other curves.
-
-      Assumes everything has same vol target, otherwise results will be weird
-
-    """
-    if len(pandl_list) == 1:
-        return ([pandl_list[0].gross.to_frame()],
-                [pandl_list[0].costs.to_frame()])
-
-    pandl_gross = [pandl_item.gross.to_frame() for pandl_item in pandl_list]
-
-    if pool_costs:
-        pandl_costs = [pandl_item.costs.to_frame()
-                       for pandl_item in pandl_list]
-    else:
-        assert pandl_this_code is not None
-
-        def _fit_cost_to_gross_frame(
-                cost_to_fit, frame_gross_pandl, backfillavgcosts=True):
-            # fit, and backfill, some costs
-            costs_fitted = cost_to_fit.reindex(frame_gross_pandl.index)
-
-            if backfillavgcosts:
-                avg_cost = cost_to_fit.mean()
-                costs_fitted.iloc[0, :] = avg_cost
-                costs_fitted = costs_fitted.ffill()
-
-            return costs_fitted
-
-        pandl_costs = [_fit_cost_to_gross_frame(pandl_this_code.costs.to_frame(), frame_gross_pandl,
-                                                backfillavgcosts) for frame_gross_pandl in pandl_gross]
-
-    return (pandl_gross, pandl_costs)
-
-
-def _DEPRECATED_get_trades_from_positions(price,
-                                          positions,
-                                          delayfill,
-                                          roundpositions,
-                                          get_daily_returns_volatility,
-                                          forecast,
-                                          fx,
-                                          value_of_price_point,
-                                          daily_capital):
+def _DEPRECATED_get_trades_from_positions(
+        price, positions, delayfill, roundpositions,
+        get_daily_returns_volatility, forecast, fx, value_of_price_point,
+        daily_capital):
     """
     Work out trades implied by a series of positions
        If delayfill is True, assume we get filled at the next price after the
@@ -1727,6 +1743,7 @@ def _DEPRECATED_get_trades_from_positions(price,
     ans = ans[np.isfinite(ans.trades)]
 
     return ans
+
 
 if __name__ == '__main__':
     import doctest
