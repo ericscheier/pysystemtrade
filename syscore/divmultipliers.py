@@ -23,7 +23,7 @@ def diversification_mult_single_period(corrmatrix, weights, dm_max=2.5):
 
     >>> corrmatrix=np.array([[1.0,0.0], [0.0,1.0]])
     >>> weights=[.5,.5]
-    >>> diversification_mult_single_period(corrmatrix, weights)
+    >>> diversification_mult_single_period(corrmatrix, weights) # square root of two
     1.414213562373095
     """
 
@@ -34,17 +34,18 @@ def diversification_mult_single_period(corrmatrix, weights, dm_max=2.5):
     weights = np.array(weights, ndmin=2)
 
     dm = np.min([
-        1.0 / (
-            float(
-                np.dot(np.dot(weights, corrmatrix), weights.transpose()))
-            ** .5),
-        dm_max])
+        1.0 /
+        (float(np.dot(np.dot(weights, corrmatrix), weights.transpose()))**.5),
+        dm_max
+    ])
 
     return dm
 
 
-def diversification_multiplier_from_list(correlation_list_object, weight_df_raw,
-                                         ewma_span=125, **kwargs):
+def diversification_multiplier_from_list(correlation_list_object,
+                                         weight_df_raw,
+                                         ewma_span=125,
+                                         **kwargs):
     """
     Given a CorrelationList object, and a dataframe of weights, work out the div multiplier
 
@@ -69,19 +70,23 @@ def diversification_multiplier_from_list(correlation_list_object, weight_df_raw,
     weight_df = weight_df_raw[correlation_list_object.columns]
 
     ref_periods = [
-        fit_period.period_start for fit_period in correlation_list_object.fit_dates]
+        fit_period.period_start
+        for fit_period in correlation_list_object.fit_dates
+    ]
 
     # here's where we stack up the answers
     div_mult_vector = []
 
-    for (corrmatrix, start_of_period) in zip(
-            correlation_list_object.corr_list, ref_periods):
+    for (corrmatrix, start_of_period) in zip(correlation_list_object.corr_list,
+                                             ref_periods):
 
         weight_slice = weight_df[:start_of_period]
         if weight_slice.shape[0] == 0:
+            # empty space
             div_mult_vector.append(1.0)
             continue
 
+        # take the current weights and work out the DM
         weights = list(weight_slice.iloc[-1, :].values)
         div_multiplier = diversification_mult_single_period(
             corrmatrix, weights, **kwargs)
@@ -91,9 +96,11 @@ def diversification_multiplier_from_list(correlation_list_object, weight_df_raw,
     div_mult_df = pd.Series(div_mult_vector, index=ref_periods)
     div_mult_df = div_mult_df.reindex(weight_df.index, method="ffill")
 
+    # take a moving average to smooth the jumps
     div_mult_df = div_mult_df.ewm(span=ewma_span).mean()
 
     return div_mult_df
+
 
 if __name__ == '__main__':
     import doctest

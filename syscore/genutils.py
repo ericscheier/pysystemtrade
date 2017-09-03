@@ -4,6 +4,8 @@ Utilities I can't put anywhere else...
 
 from math import copysign
 from copy import copy
+import sys
+import numpy as np
 
 
 def group_dict_from_natural(dict_group):
@@ -24,8 +26,10 @@ def group_dict_from_natural(dict_group):
     if len(dict_group) == 0:
         return dict()
 
-    all_names = sorted(set(sum([dict_group[groupname]
-                                for groupname in dict_group.keys()], [])))
+    all_names = sorted(
+        set(
+            sum([dict_group[groupname]
+                 for groupname in dict_group.keys()], [])))
 
     def _return_without(name, group):
         if name in group:
@@ -36,8 +40,10 @@ def group_dict_from_natural(dict_group):
             return None
 
     def _return_group(name, dict_group):
-        ans = [_return_without(name, dict_group[groupname])
-               for groupname in dict_group.keys()]
+        ans = [
+            _return_without(name, dict_group[groupname])
+            for groupname in dict_group.keys()
+        ]
         ans = [x for x in ans if x is not None]
         if len(ans) == 0:
             return []
@@ -115,6 +121,56 @@ def sign(x):
 
     """
     return copysign(1, x)
+
+
+class progressBar(object):
+    """
+    Example (not docstring as won't work)
+
+    import time
+    thing=progressBar(10000)
+    for i in range(10000):
+         # do something
+         time.sleep(0.001)
+         thing.iterate()
+     thing.finished()
+
+    """
+
+    def __init__(self, range_to_iter, suffix="Progress", toolbar_width=80):
+        self.toolbar_width = toolbar_width
+        self.current_iter = 0
+        self.suffix = suffix
+        self.range_to_iter = range_to_iter
+        self.range_per_block = range_to_iter / np.float(toolbar_width)
+        self.display_bar()
+
+
+    def iterate(self):
+        self.current_iter += 1
+        self.display_bar()
+
+        if self.current_iter == self.range_to_iter:
+            self.finished()
+
+    def how_many_blocks_had(self):
+        return int(self.current_iter / self.range_per_block)
+
+    def how_many_blocks_left(self):
+        return int((self.range_to_iter - self.current_iter) / self.range_per_block)
+
+    def display_bar(self):
+        percents = round(100.0 * self.current_iter / float(self.range_to_iter),
+                         1)
+        bar = '=' * self.how_many_blocks_had() + '-' * self.how_many_blocks_left()
+        progress_string = '\0\r [%s] %s%s %s' % (bar, percents, '%',
+                                                 self.suffix)
+        sys.stdout.write(progress_string)
+        sys.stdout.flush()
+
+    def finished(self):
+        sys.stdout.write("\n")
+
 
 if __name__ == '__main__':
     import doctest

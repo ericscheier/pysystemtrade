@@ -11,7 +11,6 @@ DEFAULT_RATE_SERIES = pd.Series(
 
 
 class Data(object):
-
     """
     Core data object - Base class
 
@@ -40,6 +39,17 @@ class Data(object):
     def __repr__(self):
         return "Data object with %d instruments" % len(
             self.get_instrument_list())
+
+    def _system_init(self, base_system):
+        """
+        This is run when added to a base system
+
+        :param base_system
+        :return: nothing
+        """
+
+        ## inherit the log
+        setattr(self, "log", base_system.log.setup(stage="data"))
 
     def methods(self):
         return get_methods(self)
@@ -109,7 +119,7 @@ class Data(object):
 
     def get_value_of_block_price_move(self, instrument_code):
         """
-        How much does a $1 (or whatever) move in the price of an instrument block affect it's value?
+        How much does a $1 (or whatever) move in the price of an instrument block affect its value?
         eg 100.0 for 100 shares
 
         :param instrument_code: instrument to value for
@@ -137,10 +147,11 @@ class Data(object):
 
         """
 
-        return dict(price_slippage=0.0,
-                    value_of_block_commission=0.0,
-                    percentage_cost=0.0,
-                    value_of_pertrade_commission=0.0)
+        return dict(
+            price_slippage=0.0,
+            value_of_block_commission=0.0,
+            percentage_cost=0.0,
+            value_of_pertrade_commission=0.0)
 
     def _get_default_currency(self):
         """
@@ -240,10 +251,10 @@ class Data(object):
         if fx_rate_series is None:
             # missing; have to get get cross rates
             default_currency = self._get_default_currency()
-            currency1_vs_default = self._get_fx_data(
-                currency1, default_currency)
-            currency2_vs_default = self._get_fx_data(
-                currency2, default_currency)
+            currency1_vs_default = self._get_fx_data(currency1,
+                                                     default_currency)
+            currency2_vs_default = self._get_fx_data(currency2,
+                                                     default_currency)
 
             (aligned_c1, aligned_c2) = currency1_vs_default.align(
                 currency2_vs_default, join="outer")
@@ -279,6 +290,38 @@ class Data(object):
 
         return fx_rate_series
 
+    def get_instrument_asset_classes(self):
+        """
+
+        :return: A pd.Series, row names are instruments, content is asset class
+        """
+        error_msg = "You have created a Data() object; you need to use a more specific data object to use .get_instrument_asset_classes"
+        self.log.critical(error_msg)
+
+    def all_instruments_in_asset_class(self, asset_class):
+        """
+        Return all the instruments in a given asset class
+
+        :param asset_class: str
+        :return: list of instrument codes
+        """
+        asset_class_data = self.get_instrument_asset_classes()
+        instrument_list = list(asset_class_data[asset_class_data==asset_class].index)
+
+        return instrument_list
+
+    def asset_class_for_instrument(self, instrument_code):
+        """
+        Which asset class is some instrument in?
+
+        :param instrument_code:
+        :return: str
+        """
+
+        asset_class_data = self.get_instrument_asset_classes()
+        asset_class = asset_class_data[instrument_code]
+
+        return asset_class
 
 if __name__ == '__main__':
     import doctest

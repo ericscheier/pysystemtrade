@@ -38,6 +38,7 @@ average_absolute_forecast: 10.0
 #
 forecast_div_multiplier: 1.0
 #
+use_forecast_div_mult_estimates: False
 #
 forecast_correlation_estimate:
    pool_instruments: True
@@ -45,7 +46,7 @@ forecast_correlation_estimate:
    frequency: "W"
    date_method: "expanding"
    using_exponent: True
-   ew_lookback: 500
+   ew_lookback: 250
    min_periods: 20      
    cleaning: True
    rollyears: 20
@@ -111,12 +112,14 @@ capital_multiplier:
 #
 instrument_div_multiplier: 1.0
 #
+use_instrument_div_mult_estimates: False
+#
 instrument_correlation_estimate:
    func: syscore.correlations.CorrelationEstimator
    frequency: "W"
    date_method: "expanding"
    using_exponent: True
-   ew_lookback: 500
+   ew_lookback: 250
    min_periods: 20      
    cleaning: True
    rollyears: 20
